@@ -66,7 +66,16 @@ jobs:
 
       - name: Build
         run: |
+          snap install multipass
           snapcraft --debug
           sudo snap install jimbob88-cran-parser_*_multi.snap --devmode --dangerous
       - name: Run
         run: jimbob88-cran-parser.cran-parser -h
+      
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v3.1.0
+        with:
+          name: snap package
+          path: jimbob88-cran-parser_*_multi.snap 
+          retention-days: 2
+      
