@@ -53,3 +53,10 @@ Creates:
 ```R
 for (url in c("https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/mvtnorm_1.0-10.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/lattice_0.20-38.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/Matrix_1.2-17.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/survival_2.44-1.1.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/lattice_0.20-38.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/Matrix_1.2-17.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/survival_2.44-1.1.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/MASS_7.3-51.4.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/TH.data_1.0-10.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/lattice_0.20-38.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/zoo_1.8-5.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/sandwich_2.5-1.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/codetools_0.2-16.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/multcomp_1.4-10.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/MASS_7.3-51.4.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/numDeriv_2016.8-1.tar.gz", "https://cran.microsoft.com/snapshot/2019-05-24/src/contrib/sensR_1.5-1.tar.gz")) {install.packages(url, repos=NULL, method="libcurl")}
 ```
+
+## Setting up with snap
+```commandline
+$ snapcraft --debug
+$ sudo snap install jimbob88-cran-parser_0.1_multi.snap --devmode --dangerous
+$ jimbob88-cran-parser.cran-parser -h
+```
