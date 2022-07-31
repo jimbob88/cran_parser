@@ -46,36 +46,3 @@ jobs:
         run: |
           python setup.py install
           python -m unittest -v tests/test_*.py
-
-  compile-snap:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v2
-
-      - name: Install Snapcraft
-        uses: samuelmeuli/action-snapcraft@v1
-
-      - name: Cache Snap
-        id: cache-snap
-        uses: actions/cache@v3
-        with:
-          path: build
-          key: ${{ runner.os }}-snap
-
-      - name: Build
-        run: |
-          sudo snap install multipass
-          snapcraft --debug
-          sudo snap install jimbob88-cran-parser_*_multi.snap --devmode --dangerous
-      - name: Run
-        run: jimbob88-cran-parser.cran-parser -h
-      
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v3.1.0
-        with:
-          name: snap package
-          path: jimbob88-cran-parser_*_multi.snap 
-          retention-days: 2
-      
