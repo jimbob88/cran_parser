@@ -4,13 +4,14 @@ import urllib.parse
 from functools import lru_cache
 from pathlib import PurePosixPath
 import posixpath
-from typing import List, Dict, Type
+from typing import List, Dict, Type, Union
 
 import bs4
 import requests
 from dataclasses import dataclass
 
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:101.0) Gecko/20100101 Firefox/101.0'}
+
 
 @dataclass
 class Package:
@@ -37,8 +38,8 @@ class PackageShortDescription(Package):
 class FullPackage(PackageShortDescription):
     long_description: str
     version: str
-    depends: List
-    suggests: List
+    depends: List[Package]
+    suggests: List[Package]
     publish_date: datetime.datetime
     author: str
     maintainer: str
@@ -109,7 +110,8 @@ class FullPackage(PackageShortDescription):
 
     @staticmethod
     def get_date_published_from_table(table: bs4.element.Tag) -> datetime.datetime:
-        return datetime.datetime.strptime(table.find('td', string='Published:').find_next_sibling('td').text, '%Y-%m-%d')
+        return datetime.datetime.strptime(table.find('td', string='Published:').find_next_sibling('td').text,
+                                          '%Y-%m-%d')
 
     @staticmethod
     def get_author_from_table(table: bs4.element.Tag) -> str:
@@ -150,12 +152,35 @@ class FullPackage(PackageShortDescription):
     @staticmethod
     def get_windows_binaries_from_table(table: bs4.element.Tag) -> Dict[str, str]:
         return dict(zip(('r-devel', 'r-release', 'r-oldrel'),
-                        [a['href'] for a in table.find('td', string=' Windows binaries: ').find_next_sibling('td').find_all('a')]))
+                        [a['href'] for a in
+                         table.find('td', string=' Windows binaries: ').find_next_sibling('td').find_all('a')]))
 
     @staticmethod
     def get_osx_binaries_from_table(table: bs4.element.Tag) -> Dict[str, str]:
         return dict(zip(('r-release', 'r-oldrel'),
-                        [a['href'] for a in table.find('td', string=' OS X binaries: ').find_next_sibling('td').find_all('a')]))
+                        [a['href'] for a in
+                         table.find('td', string=' OS X binaries: ').find_next_sibling('td').find_all('a')]))
+
+    def fix_urls(self, base_url: Union[str, None] = None):
+        if base_url is None:
+            base_url = self.url
+        for idx, dependency in enumerate(self.depends):
+            self.depends[idx].url = urllib.parse.urljoin(base_url, dependency.url)
+
+        for idx, suggestion in enumerate(self.suggests):
+            self.suggests[idx].url = urllib.parse.urljoin(base_url, suggestion.url)
+
+        self.citation_info_url = urllib.parse.urljoin(base_url, self.citation_info_url)
+        self.manual_url = urllib.parse.urljoin(base_url, self.manual_url)
+        self.package_src_url = urllib.parse.urljoin(base_url, self.package_src_url)
+
+        for key, url in self.windows_binaries_urls.items():
+            self.windows_binaries_urls[key] = urllib.parse.urljoin(base_url, url)
+
+        for key, url in self.osx_binaries_urls.items():
+            self.osx_binaries_urls[key] = urllib.parse.urljoin(base_url, url)
+
+        self.old_sources_url = urllib.parse.urljoin(base_url, self.old_sources_url)
 
 
 class CranParser:
@@ -182,8 +207,10 @@ class CranParser:
                 soup.find('table').find_all('tr', attrs={'id': ''})]
 
     def get_package(self, package: Type[Package]) -> FullPackage:
-        html = requests.get(urllib.parse.urljoin(self.package_list_url, package.url), allow_redirects=True, headers=HEADERS).content
-        return FullPackage.create_from_html(html,self.cran_source)
+        url = urllib.parse.urljoin(self.package_list_url, package.url)
+        html = requests.get(url, allow_redirects=True,
+                            headers=HEADERS).content
+        return FullPackage.create_from_html(html, url)
 
 
 def main():
@@ -191,6 +218,7 @@ def main():
     package_list = cran_parser.get_package_list()
     print('url: ', urllib.parse.urljoin(cran_parser.package_list_url, package_list[0].url))
     package = cran_parser.get_package(package_list[0])
+    package.fix_urls()
     print(package)
 
 
