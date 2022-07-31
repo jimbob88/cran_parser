@@ -13,6 +13,10 @@ from dataclasses import dataclass
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:101.0) Gecko/20100101 Firefox/101.0'}
 
 
+def get_url(url: str):
+    return requests.get(url, allow_redirects=True, headers=HEADERS).content
+
+
 @dataclass
 class Package:
     name: str
@@ -38,7 +42,7 @@ class PackageShortDescription(Package):
 class FullPackage(PackageShortDescription):
     long_description: str
     version: str
-    depends: List[Package]
+    depends: List[Type[Package]]
     suggests: List[Package]
     publish_date: datetime.datetime
     author: str
@@ -63,7 +67,8 @@ class FullPackage(PackageShortDescription):
             description=FullPackage.get_short_description_from_soup(soup),
             long_description=FullPackage.get_long_description_from_soup(soup),
             version=FullPackage.get_version_from_table(table=details_table),
-            depends=FullPackage.get_depends_from_table(table=details_table),
+            depends=FullPackage.get_depends_from_table(table=details_table) + FullPackage.get_imports_from_table(
+                table=details_table),
             suggests=FullPackage.get_suggests_from_table(table=details_table),
             publish_date=FullPackage.get_date_published_from_table(table=details_table),
             author=FullPackage.get_author_from_table(table=details_table),
@@ -96,17 +101,33 @@ class FullPackage(PackageShortDescription):
 
     @staticmethod
     def get_version_from_table(table: bs4.element.Tag) -> str:
-        return table.find('td', string='Version:').find_next_sibling('td').text
+        try:
+            return table.find('td', string='Version:').find_next_sibling('td').text
+        except AttributeError:
+            return ""
 
     @staticmethod
     def get_depends_from_table(table: bs4.element.Tag) -> List[Package]:
-        return [Package(name=link.text, url=link['href']) for link in
-                table.find('td', string='Depends:').find_next_sibling('td').find_all('a')]
+        try:
+            return [Package(name=link.text, url=link['href']) for link in
+                    table.find('td', string='Depends:').find_next_sibling('td').find_all('a')]
+        except AttributeError:
+            return []
+
+    def get_imports_from_table(table: bs4.element.Tag) -> List[Package]:
+        try:
+            return [Package(name=link.text, url=link['href']) for link in
+                    table.find('td', string='Imports:').find_next_sibling('td').find_all('a')]
+        except AttributeError:
+            return []
 
     @staticmethod
     def get_suggests_from_table(table: bs4.element.Tag) -> List[Package]:
-        return [Package(name=link.text, url=link['href']) for link in
-                table.find('td', string='Suggests:').find_next_sibling('td').find_all('a')]
+        try:
+            return [Package(name=link.text, url=link['href']) for link in
+                    table.find('td', string='Suggests:').find_next_sibling('td').find_all('a')]
+        except AttributeError:
+            return []
 
     @staticmethod
     def get_date_published_from_table(table: bs4.element.Tag) -> datetime.datetime:
@@ -115,23 +136,38 @@ class FullPackage(PackageShortDescription):
 
     @staticmethod
     def get_author_from_table(table: bs4.element.Tag) -> str:
-        return table.find('td', string='Author:').find_next_sibling('td').text
+        try:
+            return table.find('td', string='Author:').find_next_sibling('td').text
+        except AttributeError:
+            return ""
 
     @staticmethod
     def get_maintainer_from_table(table: bs4.element.Tag) -> str:
-        return table.find('td', string='Maintainer:').find_next_sibling('td').text
+        try:
+            return table.find('td', string='Maintainer:').find_next_sibling('td').text
+        except AttributeError:
+            return ""
 
     @staticmethod
     def get_license_from_table(table: bs4.element.Tag) -> str:
-        return table.find('td', string='License:').find_next_sibling('td').text
+        try:
+            return table.find('td', string='License:').find_next_sibling('td').text
+        except AttributeError:
+            return ""
 
     @staticmethod
     def get_needs_compilation_from_table(table: bs4.element.Tag) -> str:
-        return table.find('td', string='NeedsCompilation:').find_next_sibling('td').text == 'yes'
+        try:
+            return table.find('td', string='NeedsCompilation:').find_next_sibling('td').text == 'yes'
+        except AttributeError:
+            return False
 
     @staticmethod
     def get_citation_url_from_table(table: bs4.element.Tag) -> str:
-        return table.find('td', string='Citation:').find_next_sibling('td').find('a')['href']
+        try:
+            return table.find('td', string='Citation:').find_next_sibling('td').find('a')['href']
+        except AttributeError:
+            return ""
 
     @staticmethod
     def get_downloads_table(soup: bs4.BeautifulSoup) -> bs4.element.PageElement:
@@ -139,27 +175,42 @@ class FullPackage(PackageShortDescription):
 
     @staticmethod
     def get_reference_manual_url_from_table(table: bs4.element.Tag):
-        return table.find('td', string=' Reference manual: ').find_next_sibling('td').find('a')['href']
+        try:
+            return table.find('td', string=' Reference manual: ').find_next_sibling('td').find('a')['href']
+        except AttributeError:
+            return ""
 
     @staticmethod
     def get_package_source_from_table(table: bs4.element.Tag):
-        return table.find('td', string=' Package source: ').find_next_sibling('td').find('a')['href']
+        try:
+            return table.find('td', string=' Package source: ').find_next_sibling('td').find('a')['href']
+        except AttributeError:
+            return ""
 
     @staticmethod
     def get_old_sources_from_table(table: bs4.element.Tag):
-        return table.find('td', string=' Old sources: ').find_next_sibling('td').find('a')['href']
+        try:
+            return table.find('td', string=' Old sources: ').find_next_sibling('td').find('a')['href']
+        except AttributeError:
+            return ""
 
     @staticmethod
     def get_windows_binaries_from_table(table: bs4.element.Tag) -> Dict[str, str]:
-        return dict(zip(('r-devel', 'r-release', 'r-oldrel'),
-                        [a['href'] for a in
-                         table.find('td', string=' Windows binaries: ').find_next_sibling('td').find_all('a')]))
+        try:
+            return dict(zip(('r-devel', 'r-release', 'r-oldrel'),
+                            [a['href'] for a in
+                             table.find('td', string=' Windows binaries: ').find_next_sibling('td').find_all('a')]))
+        except AttributeError:
+            return {}
 
     @staticmethod
     def get_osx_binaries_from_table(table: bs4.element.Tag) -> Dict[str, str]:
-        return dict(zip(('r-release', 'r-oldrel'),
-                        [a['href'] for a in
-                         table.find('td', string=' OS X binaries: ').find_next_sibling('td').find_all('a')]))
+        try:
+            return dict(zip(('r-release', 'r-oldrel'),
+                            [a['href'] for a in
+                             table.find('td', string=' OS X binaries: ').find_next_sibling('td').find_all('a')]))
+        except AttributeError:
+            return {}
 
     def fix_urls(self, base_url: Union[str, None] = None):
         if base_url is None:
@@ -182,6 +233,40 @@ class FullPackage(PackageShortDescription):
 
         self.old_sources_url = urllib.parse.urljoin(base_url, self.old_sources_url)
 
+    def expand_dependencies(self, recursive: bool = True):
+        d = []
+        for dependency in self.depends:
+            html = get_url(dependency.url)
+            package = FullPackage.create_from_html(html, dependency.url)
+            package.fix_urls()
+            if recursive:
+                package.expand_dependencies()
+            d.append(package)
+        self.depends = d
+
+    def get_install_commands(self):
+        commands = []
+        if len(self.depends) > 0:
+            commands.append(f'# {self.name} + dependencies')
+        for dependency in self.depends:
+            commands.extend(dependency.get_install_commands())
+        if self.package_src_url:
+            commands.append(f'install.packages("{self.package_src_url}", repos=NULL, method="libcurl")')
+        return commands
+
+    def get_all_url_sources(self) -> List[str]:
+        urls = []
+        for dependency in self.depends:
+            urls.extend(dependency.get_all_url_sources())
+        if self.package_src_url:
+            urls.append(self.package_src_url)
+        return urls
+
+    def make_one_line_install_script(self):
+        urls = [f'"{url}"' for url in self.get_all_url_sources()]
+        url_list = f'c({", ".join(urls)})'
+        return f'for (url in {url_list}) {{install.packages(url, repos=NULL, method="libcurl")}}'
+
 
 class CranParser:
     def __init__(self, cran_source: str) -> None:
@@ -199,7 +284,7 @@ class CranParser:
 
     @lru_cache
     def get_package_list_html(self):
-        return requests.get(self.package_list_url, allow_redirects=True, headers=HEADERS).content
+        return get_url(self.package_list_url)
 
     def get_package_list(self):
         soup = bs4.BeautifulSoup(self.get_package_list_html(), "lxml")
@@ -208,18 +293,20 @@ class CranParser:
 
     def get_package(self, package: Type[Package]) -> FullPackage:
         url = urllib.parse.urljoin(self.package_list_url, package.url)
-        html = requests.get(url, allow_redirects=True,
-                            headers=HEADERS).content
+        html = get_url(url)
         return FullPackage.create_from_html(html, url)
 
 
 def main():
     cran_parser = CranParser("https://cran.microsoft.com/snapshot/2019-05-24/")
     package_list = cran_parser.get_package_list()
-    print('url: ', urllib.parse.urljoin(cran_parser.package_list_url, package_list[0].url))
-    package = cran_parser.get_package(package_list[0])
+    for pkg in package_list:
+        if pkg.name == 'sensR':
+            package = pkg
+    package = cran_parser.get_package(package)
     package.fix_urls()
-    print(package)
+    package.expand_dependencies()
+    print(package.make_one_line_install_script())
 
 
 if __name__ == '__main__':
