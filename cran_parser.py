@@ -2,10 +2,11 @@ import datetime
 import sys
 import urllib.parse
 from functools import lru_cache
-from pathlib import PurePosixPath
+from tabulate import tabulate
+import argparse
 import posixpath
 from typing import List, Dict, Type, Union
-
+from fuzzywuzzy import fuzz
 import bs4
 import requests
 from dataclasses import dataclass
@@ -286,7 +287,7 @@ class CranParser:
     def get_package_list_html(self):
         return get_url(self.package_list_url)
 
-    def get_package_list(self):
+    def get_package_list(self) -> List[PackageShortDescription]:
         soup = bs4.BeautifulSoup(self.get_package_list_html(), "lxml")
         return [PackageShortDescription.create_from_tr(tr) for tr in
                 soup.find('table').find_all('tr', attrs={'id': ''})]
@@ -297,16 +298,57 @@ class CranParser:
         return FullPackage.create_from_html(html, url)
 
 
+def get_args():
+    parser = argparse.ArgumentParser(description='Create download script for R package', prog='CRAN Downloader')
+    parser.add_argument('--package', dest='package', action='store',
+                        type=str, default=None,
+                        help='The package to create the installer for')
+    parser.add_argument('--list-packages', dest='list', action='store_true',
+                        help='List all the available packages')
+    parser.add_argument('--search', dest='search', action='store_true',
+                        help='Search for the package name parsed to [--package]')
+    parser.add_argument('--source', dest='source', action='store',
+                        type=str, default='https://cran.microsoft.com/snapshot/2019-05-24/',
+                        help='The CRAN homepage to use')
+
+    return parser.parse_args()
+
+
+def print_package_list(package_list: List[PackageShortDescription]):
+    print(
+        tabulate([(package.name, package.description) for package in package_list], headers=['Name', 'Description']))
+
+
+def search_package_list_for_name(name: str, package_list: List[PackageShortDescription]):
+    pkgs = list(filter(lambda package: package.name == name, package_list))
+    if len(pkgs) > 0:
+        return pkgs[0]
+    raise ValueError(f'Package {name} not found!')
+
+
+def fuzzy_search_package_list(name: str, package_list: List[PackageShortDescription]):
+    print(
+        tabulate(
+            sorted([(fuzz.ratio(package.name.lower(), name.lower()), package.name, package.description) for package in package_list],
+                   key=lambda k: k[0], reverse=True)[:5], headers=['Fuzz', 'Package Name', 'Package Description'])
+    )
+
+
 def main():
-    cran_parser = CranParser("https://cran.microsoft.com/snapshot/2019-05-24/")
+    args = get_args()
+    cran_parser = CranParser(args.source)
     package_list = cran_parser.get_package_list()
-    for pkg in package_list:
-        if pkg.name == 'sensR':
-            package = pkg
-    package = cran_parser.get_package(package)
-    package.fix_urls()
-    package.expand_dependencies()
-    print(package.make_one_line_install_script())
+    if args.search:
+        fuzzy_search_package_list(args.package, package_list)
+        exit()
+    if args.list:
+        print_package_list(package_list)
+    if args.package:
+        package = search_package_list_for_name(args.package, package_list)
+        package = cran_parser.get_package(package)
+        package.fix_urls()
+        package.expand_dependencies()
+        print(package.make_one_line_install_script())
 
 
 if __name__ == '__main__':
